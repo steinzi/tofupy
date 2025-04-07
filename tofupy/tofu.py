@@ -25,7 +25,23 @@ class CommandResults:
 
 
 class Tofu:
-    """Tofu class to interact with Terraform."""
+    """A Python interface for interacting with OpenTofu (Terraform).
+
+    This class provides a high-level interface to interact with OpenTofu/Terraform
+    commands, handling JSON output parsing and providing structured data objects.
+
+    Attributes:
+        cwd (str | Path): Current working directory for OpenTofu operations.
+        binary_path (str): Path to the OpenTofu/Terraform binary.
+        log_level (str): Logging level for OpenTofu operations.
+        env (Dict[str, str]): Environment variables to pass to OpenTofu.
+        version (str): Version of OpenTofu/Terraform being used.
+        platform (str): Platform identifier for the OpenTofu binary.
+
+    Raises:
+        FileNotFoundError: If the specified OpenTofu/Terraform binary cannot be found.
+        RuntimeError: If an incompatible version of OpenTofu/Terraform is detected.
+    """
 
     cwd: str | Path
     """Current working directory."""
@@ -43,17 +59,17 @@ class Tofu:
         log_level: str = "ERROR",
         env: Dict[str, str] = {},
     ):
-        """_summary_
+        """Initialize the Tofu interface.
 
         Args:
-            cwd (str | Path, optional): _description_. Defaults to os.getcwd().
-            binary (str, optional): _description_. Defaults to "tofu".
-            log_level (str, optional): _description_. Defaults to "ERROR".
-            env (Dict[str, str], optional): _description_. Defaults to {}.
+            cwd (str | Path, optional): Working directory for OpenTofu operations. Defaults to current directory.
+            binary (str, optional): Name or path of the OpenTofu/Terraform binary. Defaults to "tofu".
+            log_level (str, optional): Logging level for OpenTofu operations. Defaults to "ERROR".
+            env (Dict[str, str], optional): Additional environment variables to pass to OpenTofu. Defaults to empty dict.
 
         Raises:
-            FileNotFoundError: _description_
-            RuntimeError: _description_
+            FileNotFoundError: If the specified binary cannot be found in PATH.
+            RuntimeError: If an incompatible version of OpenTofu/Terraform is detected.
         """
         self.cwd = str(cwd)
         self.log_level = log_level
@@ -82,14 +98,17 @@ class Tofu:
         args: List[str],
         raise_on_error: bool = True,
     ) -> CommandResults:
-        """_summary_
+        """Execute an OpenTofu command and capture its output.
 
         Args:
-            args (List[str]): _description_
-            raise_on_error (bool, optional): _description_. Defaults to True.
+            args (List[str]): Command arguments to pass to OpenTofu.
+            raise_on_error (bool, optional): Whether to raise an exception on command failure. Defaults to True.
 
         Returns:
-            CommandResults: _description_
+            CommandResults: Object containing command execution results.
+
+        Raises:
+            RuntimeError: If the command fails and raise_on_error is True.
         """
         args = [self.binary_path] + [str(x) for x in args]
 
@@ -123,13 +142,13 @@ class Tofu:
         self,
         args: List[str],
     ) -> Generator[Dict[str, Any], None, None]:
-        """_summary_
+        """Execute an OpenTofu command and stream its JSON output.
 
         Args:
-            args (List[str]): _description_
+            args (List[str]): Command arguments to pass to OpenTofu.
 
         Yields:
-            Generator[str, None, None]: _description_
+            Generator[Dict[str, Any], None, None]: JSON events from the command output.
         """
         args = [self.binary_path] + [str(x) for x in args]
 
@@ -164,15 +183,15 @@ class Tofu:
         backend_conf: Path | None = None,
         extra_args: List[str] = [],
     ) -> bool:
-        """_summary_
+        """Initialize a new OpenTofu working directory.
 
         Args:
-            disable_backends (bool, optional): _description_. Defaults to False.
-            backend_conf (Path | None, optional): _description_. Defaults to None.
-            extra_args (List[str], optional): _description_. Defaults to [].
+            disable_backends (bool, optional): Whether to disable backend initialization. Defaults to False.
+            backend_conf (Path | None, optional): Path to backend configuration file. Defaults to None.
+            extra_args (List[str], optional): Additional arguments to pass to init command. Defaults to empty list.
 
         Returns:
-            bool: _description_
+            bool: True if initialization was successful, False otherwise.
         """
         args = ["init", "-json"] + extra_args
         if disable_backends:
@@ -184,10 +203,10 @@ class Tofu:
         return res.returncode == 0
 
     def validate(self) -> Validate:
-        """_summary_
+        """Validate the current OpenTofu configuration.
 
         Returns:
-            Validate: _description_
+            Validate: Object containing validation results and diagnostics.
         """
         res = self._run(["validate", "-json"], raise_on_error=False)
         return Validate(res.json())
@@ -199,16 +218,16 @@ class Tofu:
         event_handlers: Dict[str, Callable[[Dict[str, Any]], bool]] = {},
         extra_args: List[str] = [],
     ) -> Tuple[PlanLog, Plan | None]:
-        """_summary_
+        """Generate an execution plan for the current configuration.
 
         Args:
-            variables (Dict[str, str], optional): _description_. Defaults to {}.
-            plan_file (Path | None, optional): _description_. Defaults to None.
-            event_handlers (Dict[str, Callable[[Dict[str, Any]], bool]], optional): _description_. Defaults to {}.
-            extra_args (List[str], optional): _description_. Defaults to [].
+            variables (Dict[str, str], optional): Variables to pass to the plan command. Defaults to empty dict.
+            plan_file (Path | None, optional): Path to save the plan file. If None, uses a temporary file. Defaults to None.
+            event_handlers (Dict[str, Callable[[Dict[str, Any]], bool]], optional): Event handlers for plan output. Defaults to empty dict.
+            extra_args (List[str], optional): Additional arguments to pass to plan command. Defaults to empty list.
 
         Returns:
-            Tuple[PlanLog, Plan | None]: _description_
+            Tuple[PlanLog, Plan | None]: Tuple containing the plan log and the parsed plan object (if available).
         """
         try:
             temp_dir = None
@@ -249,6 +268,18 @@ class Tofu:
         event_handlers: Dict[str, Callable[[Dict[str, Any]], bool]] = {},
         extra_args: List[str] = [],
     ) -> ApplyLog:
+        """Apply the current configuration or a saved plan.
+
+        Args:
+            plan_file (Path | None, optional): Path to a saved plan file to apply. Defaults to None.
+            variables (Dict[str, str], optional): Variables to pass to the apply command. Defaults to empty dict.
+            destroy (bool, optional): Whether to destroy all resources. Defaults to False.
+            event_handlers (Dict[str, Callable[[Dict[str, Any]], bool]], optional): Event handlers for apply output. Defaults to empty dict.
+            extra_args (List[str], optional): Additional arguments to pass to apply command. Defaults to empty list.
+
+        Returns:
+            ApplyLog: Object containing the apply operation results.
+        """
         args = ["apply", "-auto-approve", "-json"] + extra_args
         if plan_file:
             args += [str(plan_file)]
@@ -270,6 +301,11 @@ class Tofu:
         return ApplyLog(output)
 
     def state(self) -> State:
+        """Retrieve the current state of the OpenTofu configuration.
+
+        Returns:
+            State: Object containing the current state information.
+        """
         pull_res = self._run(["state", "pull"])
         state_pull = pull_res.json()
 
@@ -285,9 +321,19 @@ class Tofu:
         )
 
     def destroy(self) -> ApplyLog:
+        """Destroy all resources managed by the current configuration.
+
+        Returns:
+            ApplyLog: Object containing the destroy operation results.
+        """
         return self.apply(destroy=True)
 
     def output(self) -> Dict[str, Output]:
+        """Retrieve the outputs from the current configuration.
+
+        Returns:
+            Dict[str, Output]: Dictionary mapping output names to their values.
+        """
         res = self._run(["output", "-json"])
         ret = {}
         for key, value in res.json().items():
