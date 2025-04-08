@@ -60,6 +60,7 @@ class Resource:
         self.schema_version = self.data.get("schema_version")
         self.provider_name = self.data.get("provider_name")
         self.values = self.data.get("values")
+        self.sensitive_values = self.data.get("sensitive_values")
 
 
 @dataclass
@@ -145,12 +146,6 @@ class Change:
 
     def __post_init__(self):
         self.actions = self.data.get("actions", [])
-
-        before = self.data.get("before")
-        if before is None:
-            self.before = None
-        else:
-            self.before_root_module
 
         self.before = self.data.get("before")
         self.after = self.data.get("after")
