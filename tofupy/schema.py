@@ -197,7 +197,7 @@ class Plan:
     resource_changes: Dict[str, ChangeContainer] = field(init=False)
     resource_drift: Dict[str, ChangeContainer] = field(init=False)
     output_changes: Dict[str, Change] = field(init=False)
-    prior_state: State = field(init=False)
+    prior_state: State | None = field(init=False)
 
     planned_root_module: Module = field(init=False)
     planned_outputs: Dict[str, Output] = field(init=False)
