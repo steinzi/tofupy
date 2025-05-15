@@ -197,7 +197,7 @@ class Plan:
     resource_changes: Dict[str, ChangeContainer] = field(init=False)
     resource_drift: Dict[str, ChangeContainer] = field(init=False)
     output_changes: Dict[str, Change] = field(init=False)
-    prior_state: State = field(init=False)
+    prior_state: State | None = field(init=False)
 
     planned_root_module: Module = field(init=False)
     planned_outputs: Dict[str, Output] = field(init=False)
@@ -232,7 +232,8 @@ class Plan:
         for attribute in self.data.get("relevant_attributes", []):
             self.relevant_attributes[attribute["resource"]] = attribute["attribute"]
 
-        self.prior_state = State(self.data.get("prior_state"))
+        if "prior_state" in self.data:
+            self.prior_state = State(self.data.get("prior_state"))
 
         self.resource_changes = {}
         for resource_change in self.data.get("resource_changes", []):
